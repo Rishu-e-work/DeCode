@@ -2,7 +2,10 @@
 import { AnalysisResult, SentenceHighlight, SourceInfo } from "@/types/analysis";
 
 // Placeholder for Gemini API key - replace with actual key
-const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+if (!GEMINI_API_KEY) {
+  console.warn("Gemini API key is not set. Please configure it in your environment variables.");
+}
 
 const knownSources = [
   { name: "CNN", bias: "Left", reliability: 75 },
@@ -16,7 +19,7 @@ const knownSources = [
 
 export const analyzeText = async (text: string): Promise<AnalysisResult> => {
   // Check if API key is set
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === import.meta.env.VITE_GEMINI_API_KEY) {
     console.warn("Gemini API key not set, using enhanced mock analysis");
     return getMockAnalysis(text);
   }
