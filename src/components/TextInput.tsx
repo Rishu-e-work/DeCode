@@ -1,10 +1,12 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Search, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
+
+// 🧠 Import configured pdfjs from custom wrapper
+import pdfjsLib from "@/lib/pdfWorker";
 
 interface TextInputProps {
   inputText: string;
@@ -16,29 +18,59 @@ interface TextInputProps {
 const TextInput = ({ inputText, setInputText, onAnalyze, isLoading }: TextInputProps) => {
   const [dragOver, setDragOver] = useState(false);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const extractPdfText = async (arrayBuffer: ArrayBuffer) => {
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map((item: any) => item.str).join(" ");
+      text += pageText + "\n\n";
+    }
+    return text;
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && (file.type === 'text/plain' || file.type === 'application/pdf')) {
+    if (!file) return;
+
+    if (file.type === "text/plain") {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
         setInputText(text);
       };
       reader.readAsText(file);
+    } else if (file.type === "application/pdf") {
+      const arrayBuffer = await file.arrayBuffer();
+      const text = await extractPdfText(arrayBuffer);
+      setInputText(text);
+    } else {
+      alert("Unsupported file type. Please upload a .txt or .pdf file.");
     }
   };
 
-  const handleDrop = (event: React.DragEvent) => {
+  const handleDrop = async (event: React.DragEvent) => {
     event.preventDefault();
     setDragOver(false);
+
     const file = event.dataTransfer.files[0];
-    if (file && file.type === 'text/plain') {
+    if (!file || (file.type !== "text/plain" && file.type !== "application/pdf")) {
+      alert("Only .txt and .pdf files are supported.");
+      return;
+    }
+
+    if (file.type === "text/plain") {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
         setInputText(text);
       };
       reader.readAsText(file);
+    } else if (file.type === "application/pdf") {
+      const arrayBuffer = await file.arrayBuffer();
+      const text = await extractPdfText(arrayBuffer);
+      setInputText(text);
     }
   };
 
@@ -53,7 +85,7 @@ const TextInput = ({ inputText, setInputText, onAnalyze, isLoading }: TextInputP
       <CardContent className="space-y-4">
         <div
           className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
-            dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+            dragOver ? "border-blue-500 bg-blue-50" : "border-gray-300"
           }`}
           onDragOver={(e) => {
             e.preventDefault();
@@ -69,7 +101,7 @@ const TextInput = ({ inputText, setInputText, onAnalyze, isLoading }: TextInputP
             className="min-h-[300px] resize-none border-0 focus:ring-0 bg-transparent"
           />
         </div>
-        
+
         <div className="flex items-center space-x-4">
           <Input
             type="file"
@@ -92,7 +124,7 @@ const TextInput = ({ inputText, setInputText, onAnalyze, isLoading }: TextInputP
           <span className="text-sm text-gray-500">
             {inputText.length} characters
           </span>
-          <Button 
+          <Button
             onClick={onAnalyze}
             disabled={isLoading || !inputText.trim()}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-8"
